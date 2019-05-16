@@ -1,0 +1,33 @@
+slug: terraform-kubernetes
+id: yvbxhxhzhiie
+type: track
+title: Provision Kubernetes with Terraform
+teaser: Terraform and Kubernetes
+description: Terraform and Kubernetes
+icon: https://storage.googleapis.com/instruqt-hashicorp-tracks/logo/terraform.png
+tags:
+- terraform
+- kubernetes
+owner: hashicorp
+developers:
+- rosemary@hashicorp.com
+- eveld@hashicorp.com
+private: false
+published: false
+challenges:
+- slug: test
+  id: zox6s9xzpqxi
+  type: challenge
+  title: test
+  teaser: test
+  assignment: test
+  tabs:
+  - title: kubernetes
+    type: terminal
+    hostname: kubernetes
+  - title: terraform
+    type: terminal
+    hostname: terraform
+  difficulty: basic
+  timelimit: 5000
+checksum: "11919205496090296514"

@@ -9,3 +9,6 @@ https://instruqt.com/hashicorp/tracks/consul-l7-observability
 
 ## hashistack-sandbox
 https://instruqt.com/hashicorp/tracks/hashistack-sandbox
+
+## terraform-kubernetes
+https://instruqt.com/hashicorp/tracks/terraform-kubernetes
