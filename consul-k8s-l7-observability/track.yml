@@ -1,0 +1,246 @@
+slug: consul-k8s-l7-observability
+id: u3cxfe1z4m2y
+type: track
+title: Layer 7 Observability with Kubernetes, Prometheus, Grafana
+teaser: Collect and visualize layer 7 metrics from services in your Kubernetes cluster   using
+  Consul  Connect, Prometheus, and Grafana.
+description: |-
+  A service mesh is made up of proxies deployed locally alongside each service
+  instance, which control network traffic between their local instance and other
+  services on the network. These proxies "see" all the traffic that runs through
+  them, and in addition to securing that traffic, they can also collect data about
+  it. Starting with version 1.5, Consul Connect is able to configure Envoy proxies
+  to collect layer 7 metrics including HTTP status codes, request latency, along
+  with many others, and export those to monitoring tools like Prometheus.
+
+  In this guide, you will deploy a basic metrics collection and visualization
+  pipeline on a Kubernetes cluster using the official Helm charts for Consul,
+  Prometheus, and Grafana. This pipeline will collect and display metrics from a
+  demo application.
+
+  > **Tip:** While this guide shows you how to deploy a metrics pipeline on
+  Kubernetes, all the technologies the guide uses are platform agnostic;
+  Kubernetes is not necessary to collect and visualize layer 7 metrics with Consul
+  Connect.
+
+  **Learning Objectives:**
+  - Configure Consul Connect with metrics using Helm
+  - Install Prometheus and Grafana using Helm
+  - Install and start the demo application
+  - Collect metrics
+icon: https://storage.googleapis.com/instruqt-frontend/assets/hashicorp/tracks/consul.png
+tags:
+- ""
+owner: hashicorp
+developers:
+- solutiongeek@solutiongeek.net
+- eveld@hashicorp.com
+private: false
+published: true
+challenges:
+- slug: install-consul
+  id: 6lols1mmmwfh
+  type: challenge
+  title: Deploy Consul Connect Using Helm
+  teaser: Follow the guide at https://learn.hashicorp.com/consul/getting-started-k8s/l7-observability-k8s
+    and try it out yourself in this hands-on lab.
+  assignment: "Open the file in your working directory called `consul-values.yaml`.
+    \nThis file will configure the Consul Helm chart to:\n\n- specify a name for your
+    Consul datacenter\n- enable the Consul web UI\n- enable secure communication between
+    pods with Connect\n- configure the Consul settings necessary for layer 7 metrics
+    collection\n- specify that this Consul cluster should run one server\n- enable
+    metrics collection on servers and agents so that you can monitor the Consul cluster
+    itself\n\nYou can override many of the values in Consul's values file using annotations
+    on specific services. For example, later in the guide you will override the centralized
+    configuration of defaultProtocol.\n\nNow install Consul in your Kubernetes cluster
+    and give Kubernetes a name for your Consul installation. The output will be a
+    list of all the Kubernetes resources created (abbreviated in the code snippet).\n\n```\nhelm
+    install -f consul-values.yaml --name l7-guide ./consul-helm\n```\n\nCheck that
+    Consul is running in your Kubernetes cluster via the Kubernetes dashboard or CLI."
+  notes:
+  - type: text
+    contents: Please wait while we create your **sandboxed environment**. This can
+      take up to **a minute** to complete.
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    port: 30443
+  - title: Consul UI
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30085
+  - title: Token
+    type: code
+    hostname: kubernetes
+    path: /root/token.txt
+  - title: Editor
+    type: code
+    hostname: kubernetes
+    path: /root/guide
+  difficulty: basic
+  timelimit: 500
+- slug: install-prometheus
+  id: jq0c7r3umpfi
+  type: challenge
+  title: Deploy the Metrics Pipeline
+  teaser: In this guide, you will use Prometheus and Grafana to collect and visualize
+    metrics. Consul Connect can integrate with a variety of other metrics tooling
+    as well.
+  assignment: |-
+    You'll follow a similar process as you did with Consul to install Prometheus via Helm. First, open the file named prometheus-values.yaml that configures the Prometheus Helm chart.
+
+    The file specifies how often Prometheus should scrape for metrics, and which endpoints it should scrape from. By default Prometheus scrapes all the endpoints that Kubernetes knows about, even if those endpoints don't expose Prometheus metrics. To prevent Prometheus from scraping these endpoints unnecessarily the values file includes some relabel configurations.
+
+    Install the official Prometheus Helm chart using the values in prometheus-values.yaml.
+
+    ```
+    helm install -f prometheus-values.yaml --name prometheus stable/prometheus
+    ```
+
+    Once Prometheus has come up, you should be able to see your new services on the Kubernetes dashboard and in the Consul UI. This might take a short while.
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Consul UI
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30085
+  - title: Editor
+    type: code
+    hostname: kubernetes
+    path: /root/guide
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    port: 30443
+  - title: Prometheus
+    type: service
+    hostname: kubernetes
+    port: 30090
+  difficulty: basic
+  timelimit: 500
+- slug: install-grafana
+  id: e1xnwl58dwvw
+  type: challenge
+  title: Deploy Grafana with Helm
+  teaser: Grafana
+  assignment: |-
+    Installing Grafana will follow a similar process. Open and look through the file named grafana-values.yaml. It configures Grafana to use Prometheus as its datasource.
+
+    Use the official Helm chart to install Grafana with your values file.
+
+    ```
+    helm install -f grafana-values.yaml --name grafana stable/grafana
+    ```
+
+    At the bottom of your terminal output are shell-specific instructions to access your Grafana UI and log in, displayed as a numbered list.
+
+    Follow the instructions mentioned in #1 to log in to Grafana.
+
+    Once you have logged into the Grafana UI, hover over the dashboards icon (four squares in the left hand menu) and then click the "manage" option. This will take you to a page that gives you some choices about how to upload Grafana dashboards. Click the black "Import" button on the right hand side of the screen.
+
+    Open the file called overview-dashboard.json and copy the contents into the json window of the Grafana UI. Click through the rest of the options, and you will end up with a blank dashboard, waiting for data to display.
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Editor
+    type: code
+    hostname: kubernetes
+    path: /root/guide
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    port: 30443
+  - title: Grafana
+    type: service
+    hostname: kubernetes
+    port: 30030
+  - title: Dashboard.json
+    type: code
+    hostname: kubernetes
+    path: /root/guide/overview_dashboard.json
+  difficulty: basic
+  timelimit: 500
+- slug: install-emojify
+  id: nztbpenzkqox
+  type: challenge
+  title: Deploy a Demo Application on Kubernetes
+  teaser: Emojify
+  assignment: |-
+    Now that your monitoring pipeline is set up, deploy a demo application that will generate data. We will be using Emojify, an application that recognizes faces in an image and pastes emojis over them. The application consists of a few different services and automatically generates traffic and HTTP error codes.
+
+    All the files defining Emojify are in the app directory. Open app/cache.yml and take a look at the file. Most of services that make up Emojify communicate over HTTP, but the cache service uses gRPC. In the annotations section of the file you'll see where consul.hashicorp.com/connect-service-protocol specifies gRPC, overriding the defaultProtocol of HTTP that we centrally configured in Consul's value file.
+
+    At the bottom of each file defining part of the Emojify app, notice the block defining a prometheus-statsd pod. These pods translate the metrics that Envoy exposes to a format that Prometheus can scrape. They won't be necessary anymore once Consul Connect becomes compatible with Envoy 1.10. Apply the configuration to deploy Emojify into your cluster.
+
+    ```
+    kubectl apply -f app
+    ```
+
+    Emojify will take a little while to deploy. Once it's running you can check that it's healthy by taking a look at your Kubernetes dashboard or Consul UI. Next, visit the Emojify UI.
+
+    Test the application by emojifying a picture. You can do this by pasting the following URL into the URL bar and clicking the submit button. (We provide a demo URL because Emojify can be picky about processing some image URLs if they don't link directly to the actual picture.)
+
+    ```
+    https://emojify.today/pictures/1.jpg
+    ```
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Editor
+    type: code
+    hostname: kubernetes
+    path: /root/guide
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    port: 30443
+  - title: Consul UI
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30085
+  - title: Emojify
+    type: service
+    hostname: kubernetes
+    port: 30000
+  difficulty: basic
+  timelimit: 500
+- slug: generate-traffic
+  id: 0qvjb04s2txg
+  type: challenge
+  title: Generating simulated traffic
+  teaser: Generate traffic
+  assignment: |-
+    Now that you know the application is working, start generating automatic load so that you will have some interesting metrics to look at.
+
+    ```
+    kubectl apply -f traffic.yaml
+    ```
+
+    Envoy exposes a huge number of metrics, but you will probably only want to monitor or alert on a subset of them. Which metrics are important to monitor will depend on your application. For this getting-started guide we have preconfigured an Emojify-specific Grafana dashboard with a couple of basic metrics, but you should systematically consider what others you will need to collect as you move from testing into production.
+
+    Now that you have metrics flowing through your pipeline, navigate back to your Grafana dashboard. The top row of the dashboard displays general metrics about the Emojify application as a whole, including request and error rates. Although changes in these metrics can reflect application health issues once you understand their baseline levels, they don't provide enough information to diagnose specific issues.
+
+    The following rows of the dashboard report on some of the specific services that make up the emojify application: the website, API, and cache services. The website and API services show request count and response time, while the cache reports on request count and methods.
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Grafana
+    type: service
+    hostname: kubernetes
+    path: /d/eaX-0rzWz/overview?orgId=1
+    port: 30030
+  difficulty: basic
+  timelimit: 500
+checksum: "16747113180932878634"

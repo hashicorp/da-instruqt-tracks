@@ -1,0 +1,117 @@
+#!/bin/bash
+git clone https://github.com/eveld/consul-k8s-l7-obs-guide.git guide
+sed -i 's/default: true/default: false/g' guide/consul-values.yaml
+
+git clone https://github.com/hashicorp/consul-helm.git guide/consul-helm
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-service
+spec:
+  type: NodePort
+  selector:
+    app: consul
+    component: server
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8500
+    targetPort: 8500
+    nodePort: 30085
+EOF
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+spec:
+  type: NodePort
+  selector:
+    app: grafana
+  ports:
+  - name: http
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
+    nodePort: 30030
+EOF
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+spec:
+  type: NodePort
+  selector:
+    app: prometheus
+  ports:
+  - name: http
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+    nodePort: 30090
+EOF
+
+# Set up kubernetes dashboard
+
+/usr/local/bin/kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/master/aio/deploy/recommended/kubernetes-dashboard.yaml
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1                                                                                 
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kube-system
+EOF
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kube-system
+EOF
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernetes-dashboard
+  namespace: kube-system
+spec:
+  type: NodePort
+  selector:
+    k8s-app: kubernetes-dashboard
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8443
+    targetPort: 8443
+    nodePort: 30443
+EOF
+
+/usr/local/bin/kubectl get secret -o json -n kube-system $(kubectl get secret -n kube-system | grep admin-user | awk '{ print $1 }') | jq -r '.data.token' | base64 --decode > /root/token.txt
+
+while [ ! -f /bin/set-workdir ]
+do
+  sleep 1
+done
+
+/bin/set-workdir /root/guide

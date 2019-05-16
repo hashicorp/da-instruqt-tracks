@@ -1,0 +1,14 @@
+version: "2"
+virtualmachines:
+- name: gamma
+  image: instruqt-hashicorp/hashistack-0-1-0
+  shell: /bin/bash
+  machine_type: g1-small
+- name: alpha
+  image: instruqt-hashicorp/hashistack-0-1-0
+  shell: /bin/bash
+  machine_type: g1-small
+- name: beta
+  image: instruqt-hashicorp/hashistack-0-1-0
+  shell: /bin/bash
+  machine_type: g1-small

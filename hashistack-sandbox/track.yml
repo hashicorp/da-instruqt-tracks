@@ -1,0 +1,51 @@
+slug: hashistack-sandbox
+id: qgyply2tdwxk
+type: sandbox
+title: HashiStack
+teaser: A sandbox environment with a Nomad and Consul cluster.
+description: A sandboxed environment that can be used to showcase features of Nomad
+  and it's integration with other HashiCorp tools.
+icon: https://storage.googleapis.com/instruqt-hashicorp-tracks/hashistack-sandbox/hashicorp.png
+tags:
+- hashicorp
+- nomad
+- consul
+owner: hashicorp
+developers:
+- eveld@hashicorp.com
+private: false
+published: false
+challenges:
+- slug: sandbox
+  id: o5lrhhpnzeac
+  type: challenge
+  title: Sandbox
+  teaser: Sandbox environment.
+  assignment: |
+    The environment contains 3 nodes, running both Nomad and Consul.
+    All agents are configured as both client and server.
+
+    There are tabs exposing a terminal on each of the servers and the UI for both Nomad and Consul.
+  tabs:
+  - title: alpha
+    type: terminal
+    hostname: alpha
+  - title: beta
+    type: terminal
+    hostname: beta
+  - title: gamma
+    type: terminal
+    hostname: gamma
+  - title: Nomad UI
+    type: service
+    hostname: alpha
+    path: /ui
+    port: 4646
+  - title: Consul UI
+    type: service
+    hostname: alpha
+    path: /ui
+    port: 8500
+  difficulty: basic
+  timelimit: 3600
+checksum: "4691526810989100667"

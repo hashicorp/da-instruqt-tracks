@@ -1,0 +1,5 @@
+#!/bin/bash
+touch /root/proxy.hcl
+
+/usr/bin/supervisorctl stop envoy
+killall envoy

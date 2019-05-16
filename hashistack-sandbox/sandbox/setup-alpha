@@ -1,0 +1,48 @@
+#!/bin/bash
+IP=$(getent ahosts $HOSTNAME | head -n 1 | cut -d ' ' -f 1)
+
+mkdir -p /etc/consul.d
+cat <<EOF > /etc/consul.d/server.hcl
+data_dir = "/tmp/consul"
+log_level = "DEBUG"
+server = true
+bootstrap_expect = 3
+bind_addr = "0.0.0.0"
+client_addr = "0.0.0.0"
+advertise_addr = "$IP"
+ui = true
+EOF
+
+systemctl restart consul
+
+mkdir -p /etc/nomad.d
+cat <<EOF > /etc/nomad.d/server.hcl
+log_level = "DEBUG"
+data_dir = "/tmp/nomad"
+
+server {
+  enabled = true
+  bootstrap_expect = 3
+}
+
+client {
+  enabled = true
+}
+
+consul {
+  address = "localhost:8500"
+
+  server_service_name = "nomad"
+  client_service_name = "nomad-client"
+
+  auto_advertise = true
+
+  server_auto_join = true
+  client_auto_join = true
+}
+EOF
+
+systemctl restart nomad
+
+echo "export NOMAD_HTTP_ADDR=http://$IP:4646" >> /root/.bashrc
+echo "export CONSUL_HTTP_ADDR=http://$IP:8500" >> /root/.bashrc
