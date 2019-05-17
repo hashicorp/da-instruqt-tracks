@@ -1,0 +1,113 @@
+#!/bin/bash
+cat <<EOL > /root/terraform/provider.tf
+provider "kubernetes" {
+  host        = "https://kubernetes:6443"
+  version     = "~> 1.6"
+}
+EOL
+
+cat <<EOL > /root/terraform/variables.tf
+variable "name" {
+  type = "string"
+}
+
+variable "namespace" {
+  default = "default"
+}
+
+variable "replicas" {
+  default = 1
+}
+
+variable "user_id" {
+  default = 1001
+}
+
+variable "image" {
+  type = "string"
+}
+
+variable "port" {}
+
+variable "service_port" {
+  default = 80
+}
+EOL
+
+cat <<EOL > /root/terraform/versions.tf
+terraform {
+  required_version = "~> 0.11.13"
+}
+EOL
+
+cat <<'EOL' > /root/main.tf
+resource "kubernetes_deployment" "application" {
+  metadata {
+    name      = "${var.name}"
+    namespace = "${var.namespace}"
+
+    labels = {
+      app = "${var.name}"
+    }
+  }
+
+  spec {
+    replicas = "${var.replicas}"
+
+    selector {
+      match_labels = {
+        app = "${var.name}"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "${var.name}"
+        }
+      }
+
+      spec {
+        security_context {
+          run_as_user = "${var.user_id}"
+        }
+
+        container {
+          name  = "${var.name}"
+          image = "${var.image}"
+
+          port {
+            container_port = "${var.port}"
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service" "application" {
+  metadata {
+    name      = "${var.name}"
+    namespace = "${var.namespace}"
+
+    labels = {
+      app = "${var.name}"
+    }
+  }
+
+  spec {
+    selector = {
+      app = "${var.name}"
+    }
+
+    port {
+      port        = "${var.service_port}"
+      target_port = "${var.port}"
+    }
+  }
+}
+EOL

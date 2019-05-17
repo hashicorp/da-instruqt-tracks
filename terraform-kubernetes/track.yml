@@ -1,9 +1,18 @@
 slug: terraform-kubernetes
 id: yvbxhxhzhiie
 type: track
-title: Provision Kubernetes with Terraform
-teaser: Terraform and Kubernetes
-description: Terraform and Kubernetes
+title: Using Terraform to Deploy to Kubernetes
+teaser: |-
+  Learn how to use the Kubernetes Terraform Provider to deploy to a Kubernetes
+  cluster.
+description: "Terraform is a tool for building, changing, and versioning infrastructure\nsafely
+  and efficiently. Kubernetes is an open-source system for automating\ndeployment,
+  scaling, and management of containerized applications. \nBy using Terraform and
+  Kubernetes, we can parametrize application deployment,\nmanage deployment configuration,
+  and track differences in configuration and\nversioning.\n\nIn this track, we will
+  start with using Terraform to deploy an web\napplication to a Kubernetes cluster.
+  Then, we will deploy Apache Zookeeper,\nan application with additional configuration
+  required, to the cluster."
 icon: https://storage.googleapis.com/instruqt-hashicorp-tracks/logo/terraform.png
 tags:
 - terraform
@@ -15,19 +24,69 @@ developers:
 private: false
 published: false
 challenges:
-- slug: test
+- slug: inspect-cluster
   id: zox6s9xzpqxi
   type: challenge
-  title: test
-  teaser: test
-  assignment: test
+  title: Verify Kubernetes cluster
+  teaser: Make sure the Kubernetes cluster is running properly.
+  assignment: |-
+    In the Kubernetes terminal, check that Kubernetes is running using the
+    command `kubectl get nodes`. There should be a single node with status
+    **Ready**.
+
+    If everything is running correctly,
+    hit **check** to proceed.
+  notes:
+  - type: text
+    contents: |-
+      [Kubernetes](https://kubernetes.io/) is an open-source system for automating deployment, scaling, and management of containerized applications. Containers can be grouped into logical units, scheduled onto available resources, connected through networking, and identified and tagged.
+
+      Kubernetes leverages various constructs to logically group containers.
+      Constructs include a:
+
+      - *Pod*, which is a set of containers that share networking and storage.
+      - *Deployment*, which is a set of Pods.
+      - *Service*, which exposes a Deployment to discover and connect to other Deployments.
+
+      For more information, refer to the [Kubernetes Concepts](https://kubernetes.io/docs/concepts/) documentation.
   tabs:
   - title: kubernetes
     type: terminal
     hostname: kubernetes
+  difficulty: basic
+  timelimit: 300
+- slug: initialize-terraform
+  id: wso9delz9otk
+  type: challenge
+  title: Initialize Terraform
+  teaser: Initialize Terraform and download the Kubernetes provider.
+  assignment: "Terraform requires initialization before any configuration can be applied.
+    \n\nInitialization will...\n1. Install any required providers. See the \n   Provider
+    tab to examine how the\n   provider is declared for Terraform use.\n1. Initialize
+    the local state directory.\n\nRun `terraform init` in the Terraform terminal.\n\nThis
+    installs the Terraform Kubernetes provider\nand creates a `.terraform` directory
+    for local state management.\nWhen the provider has completed installation, hit
+    **check** to continue."
+  notes:
+  - type: text
+    contents: |-
+      Terraform uses *providers* to interface with various APIs and exposing resources. A provider is versioned and included as part of a configuration file.
+
+      ```hcl
+      provider "kubernetes" {
+        version = "~> X.X"
+      }
+      ```
+
+      The [Kubernetes Provider](https://www.terraform.io/docs/providers/kubernetes/index.html) allows Terraform to make calls to the [Kubernetes API](https://kubernetes.io/docs/concepts/overview/kubernetes-api/).
+  tabs:
   - title: terraform
     type: terminal
     hostname: terraform
+  - title: Editor
+    type: code
+    hostname: terraform
+    path: /root/terraform
   difficulty: basic
-  timelimit: 5000
-checksum: "11919205496090296514"
+  timelimit: 300
+checksum: "5834041382361036425"

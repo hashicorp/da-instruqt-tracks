@@ -1,0 +1,6 @@
+#!/bin/bash -
+NODES=$(kubectl get nodes --no-headers | wc -l)
+if [ $RUNNING -ne 1 ]; then 
+    fail-message "Kubernetes cluster is not running"
+    exit 1
+fi

@@ -1,0 +1,6 @@
+#!/bin/bash
+mkdir -p /root/.kube
+mv /tmp/kubeconfig.yaml /root/.kube/config
+
+mkdir -p /root/terraform
+set-workdir /root/terraform

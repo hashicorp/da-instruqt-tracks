@@ -1,0 +1,11 @@
+#!/bin/bash -
+ls -al .terraform
+if [ $? -ne 0 ]; then 
+    fail-message "Terraform was not initialized"
+    exit 1
+fi
+
+if [[ $(terraform providers 2>&1 > /dev/null) = *Initialization* ]]; then 
+    fail-message "Terraform provider was not installed"
+    exit 1
+fi
