@@ -1,0 +1,47 @@
+slug: vagrant
+id: drxcmoch18me
+type: sandbox
+title: Vagrant
+teaser: Development environments made easy.
+description: The same, easy workflow regardless of your role as a developer, operator,
+  or designer. Leverage a declarative configuration file which describes all your
+  software requirements, packages, operating system configuration, users, and more.
+icon: https://storage.googleapis.com/instruqt-hashicorp-tracks/logo/vagrant.png
+tags:
+- vagrant
+- hashicorp
+owner: hashicorp
+developers:
+- croberts@hashicorp.com
+- eveld@hashicorp.com
+private: true
+published: true
+challenges:
+- slug: sandbox
+  id: 4ix0ljmgqyqm
+  type: challenge
+  title: Sandbox
+  teaser: Sandbox environment.
+  assignment: |-
+    The environment contains a machine with Vagrant preinstalled on the path.
+
+    There are tabs exposing the editor with the Vagrantfile and a shell to execute the vagrant command.
+
+    To start the VM, run:
+    ```
+    vagrant up
+    ```
+  notes:
+  - type: text
+    contents: Please wait while we create your sandboxed environment.
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: vagrant
+  - title: Editor
+    type: code
+    hostname: vagrant
+    path: /root/vagrant/
+  difficulty: basic
+  timelimit: 3600
+checksum: "17500593079349622186"

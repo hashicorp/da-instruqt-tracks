@@ -1,0 +1,6 @@
+#!/bin/bash
+
+mkdir -p /root/vagrant
+/usr/local/bin/vagrant init hashicorp/precise64 --minimal --output /root/vagrant/Vagrantfile
+
+set-workdir /root/vagrant/
