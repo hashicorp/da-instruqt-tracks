@@ -1,0 +1,19 @@
+#!/bin/bash
+# check
+
+echo "Checking the solution of the challenge"
+
+kubectl get pods | grep consul-server-0
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have installed the Consul helm chart"
+fi
+
+kubectl get pods | grep consul-connect
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured your values.yml to enable  connectInject"
+fi
+
+curl kubernetes:30010/ui/| grep consul-ui
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have enabled the Consul UI"
+fi

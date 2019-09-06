@@ -1,0 +1,16 @@
+#!/bin/bash
+
+curl localhost:8500/v1/connect/intentions | grep '"SourceName":"emojify-ingress"'
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured the intention correctly,the source service should be emojify-ingress"
+fi
+
+curl localhost:8500/v1/connect/intentions | grep '"DestinationName":"emojify-website"'
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured the intention correctly, the destination service should be emojify-website"
+fi
+
+curl localhost:8500/v1/connect/intentions | grep '"Action":"allow"'
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured intention correctly, the action should be allow"
+fi

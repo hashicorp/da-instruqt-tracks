@@ -1,0 +1,60 @@
+slug: consul-vault-kubernetes
+id: ftqs6e9fxb5t
+type: sandbox
+title: Consul and Vault on Kubernetes
+teaser: A sandbox environment with a  Consul cluster integrated with Vault on Kubernetes.
+description: A sandboxed environment that can be used to showcase features of Consul
+  and its integration with Vault and Kubernetes.
+icon: https://storage.googleapis.com/instruqt-frontend/img/tracks/kubernetes.png
+tags:
+- consul
+- vault
+- kubernetes
+owner: hashicorp
+developers:
+- lhelmus@hashicorp.com
+- eveld@hashicorp.com
+private: true
+published: true
+challenges:
+- slug: sandbox
+  id: ofvknosrieyj
+  type: challenge
+  title: Sandbox
+  teaser: Sandbox environment.
+  assignment: |-
+    Tabs:
+    - A shell with kubectl installed
+    - The Kubernetes UI
+    - The Consul UI
+    - The Vault UI
+    - An application running on top of kubernetes
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    port: 30443
+  - title: Consul
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30085
+  - title: Vault
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30082
+  - title: Grafana
+    type: service
+    hostname: kubernetes
+    port: 30030
+  - title: Emojify
+    type: service
+    hostname: kubernetes
+    port: 30000
+  difficulty: basic
+  timelimit: 7200
+checksum: "421376886183493883"

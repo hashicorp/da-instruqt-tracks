@@ -1,0 +1,7 @@
+#!/bin/bash
+
+kubectl describe pod $(kubectl get pods -l=app=emojify-cache -o name | sed 's/pod\///') | grep consul-connect-envoy-sidecar
+kubectl get pods | grep consul-server-0
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have installed the Consul helm chart"
+fi

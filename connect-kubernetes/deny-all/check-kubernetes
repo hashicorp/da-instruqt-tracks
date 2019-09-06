@@ -1,0 +1,16 @@
+#!/bin/bash
+
+curl localhost:8500/v1/connect/intentions | grep '"SourceName":"*"'
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured the deny-all intention the source service should be *"
+fi
+
+curl localhost:8500/v1/connect/intentions | grep '"DestinationName":"*"'
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured the deny-all intention the destination service should be *"
+fi
+
+curl localhost:8500/v1/connect/intentions | grep '"Action":"deny"'
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured the deny-all intention the action should be deny"
+fi

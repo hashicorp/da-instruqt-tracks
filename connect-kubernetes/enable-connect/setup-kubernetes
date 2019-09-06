@@ -1,0 +1,7 @@
+#!/bin/bash
+
+which set-workdir
+env
+
+# Set workdir
+set-workdir "/tmp/security/exercises/02-setup-connect/files/app"

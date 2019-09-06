@@ -1,0 +1,55 @@
+#!/bin/bash
+# Set up Consul.
+git clone https://github.com/hashicorp/consul-helm.git
+
+cat <<EOF > consul-values.yaml
+name: consul
+
+global:
+  datacenter: dc1
+  fullnamePrefix: ""
+
+server:
+  replicas: 1
+  bootstrapExpect: 1
+  disruptionBudget:
+    enabled: true
+    maxUnavailable: 0
+
+client:
+  enabled: true
+  grpc: true
+
+ui:
+  enabled: true
+
+connectInject:
+  enabled: true
+  default: false
+
+  centralConfig:
+    enabled: true
+EOF
+
+/usr/local/bin/helm template -f consul-values.yaml ./consul-helm | /usr/local/bin/kubectl apply -f -
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-service
+spec:
+  type: NodePort
+  selector:
+    app: consul
+    component: server
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8500
+    targetPort: 8500
+    nodePort: 30085
+EOF
+
+/usr/local/bin/kubectl get secret -o json -n kube-system $(kubectl get secret -n kube-system | grep admin-user | awk '{ print $1 }') | jq -r '.data.token' | base64 --decode > /root/token.txt

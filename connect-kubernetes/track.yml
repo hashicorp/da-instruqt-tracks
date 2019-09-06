@@ -1,0 +1,241 @@
+slug: connect-kubernetes
+id: bi8lzub8nryh
+type: track
+title: Running Consul Service Mesh on Kubernetes
+teaser: Learn how to run Consul Service Mesh on Kubernetes
+description: This track shows you how to install and run Consul Service Mesh on Kubernetes,
+  you will learn how Consul can be installed using the official Helm chart, and how
+  you can secure your services using pod annotations.
+icon: https://storage.googleapis.com/instruqt-frontend/assets/hashicorp/tracks/consul.png
+tags:
+- consul
+- connect
+- hashicorp
+owner: hashicorp
+developers:
+- todd@hashicorp.com
+- jackson.nic@gmail.com
+- christie@hashicorp.com
+- anubhav9mishra@gmail.com
+- eveld@hashicorp.com
+private: false
+published: true
+challenges:
+- slug: setup
+  id: lsvjerqvwsyk
+  type: challenge
+  title: Setup
+  teaser: In this challenge you will learn how to deploy Consul Connect to Kubernetes
+    using a Helm chart
+  assignment: "# Install Consul Connect on Kubernetes\r\n\r\nModify the values.yml
+    file to enable the connect features\r\n\r\n```\r\nui:\r\n  enabled: true\r\n  service:\r\n
+    \   enabled: true\r\n    type: NodePort\r\n\r\nclient:\r\n  enabled: true\r\n
+    \ grpc: true\r\n\r\nconnectInject:\r\n  enabled: true\r\n```\r\n\r\nYou can then
+    deploy the helm chart using the command\r\n\r\n```\r\nhelm install -f values.yml
+    \\\r\n  -n consul  ./consul-helm-0.7.0\r\n```\r\n\r\nYou can test Consul has been
+    configured correctly by viewing the UI in the tabs\r\n\r\nIf you make a mistake
+    you can delete the helm chart with the following command\r\n\r\n```\r\nhelm delete
+    --purge consul\r\n```"
+  notes:
+  - type: text
+    contents: "In this challenge we will install Consul onto Kubernetes using the
+      Consul Helm chart.\r\n[https://github.com/hashicorp/consul-helm](https://github.com/hashicorp/consul-helm)"
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Editor
+    type: code
+    hostname: kubernetes
+    path: /tmp/security/exercises/01-setup-consul/files/consul-helm
+  - title: Emojify
+    type: service
+    hostname: kubernetes
+    port: 30000
+  - title: Consul
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30010
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    path: /api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/deployment?namespace=default
+    port: 8001
+  difficulty: basic
+  timelimit: 3600
+- slug: enable-connect
+  id: vp8e3ttfewg6
+  type: challenge
+  title: Enabling Consul Connect for a pod
+  teaser: In this challenge you will enable Consul Connect for a pod by adding Kubernetes
+    annotations
+  assignment: "Configure the deployment for your cache pod to add the Consul Connect
+    injection annotation.\r\n\r\n[https://www.consul.io/docs/platform/k8s/connect.html](https://www.consul.io/docs/platform/k8s/connect.html)\r\n\r\nOnce
+    you have configured the annotation re-deploy the pod using kubectl:\r\n\r\n```\r\nkubectl
+    apply -f cache.yml\r\n```\r\n\r\nYou can confirm that Consul has automatically
+    injected the Envoy dataplane as a sidecar by inspecting the pod in the Kubernetes
+    dashboard, or by running:\r\n\r\n```\r\nkubectl describe pod [cache pod name]\r\n```\r\n\r\n**HINT:**
+    You can look at the api.yml file for the correct configuration options."
+  notes:
+  - type: text
+    contents: "Consul Connect can automatically add and configure a Envoy sidecar
+      for your pod.\r\n\r\nTo enable this we add the annotation `\"consul.hashicorp.com/connect-inject\":
+      \"true\"` to our templates metadata.\r\n\r\n```\r\nspec:\r\n  replicas: 1\r\n
+      \ selector:\r\n    matchLabels:\r\n      app: emojify-cache\r\n  template:\r\n
+      \   metadata:\r\n      labels:\r\n        app: emojify-cache\r\n      annotations:\r\n
+      \       \"consul.hashicorp.com/connect-inject\": \"true\"\r\n```"
+  tabs:
+  - title: Editor
+    type: code
+    hostname: kubernetes
+    path: /tmp/security/exercises/02-setup-connect/files/app
+  - title: Emojify
+    type: service
+    hostname: kubernetes
+    port: 30000
+  - title: Consul
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30010
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    path: /api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/deployment?namespace=default
+    port: 8001
+  difficulty: basic
+  timelimit: 500
+- slug: configure-upstream
+  id: 4ybz7iawmujy
+  type: challenge
+  title: Configuring Consul Connect upstreams
+  teaser: In this challenge you will learn how to configure upstreams with Consul
+    connect
+  assignment: "The Inject feature of Consul Connect allows us to expose upstream services
+    to our pod by adding annotations to the pod description.\r\n\r\nThe ingress service
+    requires an upstream connection to the emojify-api and the emojify-website, it
+    expects the emojify-api to be accessible on port 8000 and emojify-website on port
+    8001.  You can do this by adding an additional line to the pod annotations.\r\n\r\n```\r\n\"consul.hashicorp.com/connect-service-upstreams\":
+    \"emojify-api:8000,emojify-website:8001\"\r\n```\r\n\r\n**Note:** In order to
+    expose an upstream the destination service must also be configured to use Consul
+    Connect, the upstream configuration of the other services has been completed for
+    you.\r\n\r\nOnce you have configured the upstreams, redeploy your pod:\r\n\r\n```\r\nkubectl
+    apply -f ingress.yml\r\n```\r\n\r\nYou can check that your configuration is correct
+    by viewing the Emojify webiste in the tabs."
+  notes:
+  - type: text
+    contents: "Upstreams allow you configure the Envoy sidecar to expose another service
+      in the mesh at a local address.\r\n\r\nThe local service does not need to have
+      any concept of service discovery or the location of the upstream service it
+      can simply use the exposed localhost address for a connection.\r\n\r\n```\r\n
+      \     annotations:\r\n        \"consul.hashicorp.com/connect-inject\": \"true\"\r\n
+      \       \"consul.hashicorp.com/connect-service-upstreams\": \"emojify-api:8000,emojify-website:8001\"\r\n```\r\n\r\nIn
+      the above example we are exposing the emojify-api at localhost:8000 and the
+      emojify website at localhost:8001"
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Editor
+    type: code
+    hostname: kubernetes
+    path: /tmp/security/exercises/03-setup-upstream/files/app
+  - title: Emojify
+    type: service
+    hostname: kubernetes
+    port: 30000
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    path: /api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/deployment?namespace=default
+    port: 8001
+  - title: Consul
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30010
+  difficulty: basic
+  timelimit: 500
+- slug: deny-all
+  id: wkzuqymril8x
+  type: challenge
+  title: Configure intentions to deny all
+  teaser: In this challenge you will see how to configure Consul Connect intentions
+    to deny all traffic
+  assignment: "To configure an intention in Consul Connect you can use the UI, CLI
+    or API.\r\n\r\nThis challenge will use the UI, selec the Consul tab and then click
+    on the \"Intentions\" menu item to see the intentions user interface.\r\n\r\nTo
+    add a new intention we first click the \"Create\" button.\r\n\r\nCreate a \"Deny-All\"
+    intention for your setup, you will need to set the  following  values:\r\n* Source
+    Service = \"*\"\r\n* Destination Service = \"*\"\r\n* \"Deny\"\r\n\r\nOptionally
+    you can set a description, once you are done save your intention\r\n\r\nConnections
+    between services are persisted for a short period, to see the new intention in
+    action immediately we can delete the ingress pod.\r\n\r\nOnce this has been redeployed
+    you can refresh the Emojify tab, you will see that website is no longer visible.
+    \ Consul Connect is now actively blocking all connections to any upstream.  In
+    the next challenge you will see how we can configure allow intentions for each
+    service."
+  notes:
+  - type: text
+    contents: "Intentions define \"allowed\" or \"denied\" traffic within the service
+      mesh.\r\n\r\nTo apply a principle of \"Zero-Trust\" you should deny all traffic
+      by default, in this challenge you will learn how to configure Consul Connect
+      intentions to deny all traffic."
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Emojify
+    type: service
+    hostname: kubernetes
+    port: 30000
+  - title: Consul
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30010
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    path: /api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/deployment?namespace=default
+    port: 8001
+  difficulty: basic
+  timelimit: 500
+- slug: allow-intentions
+  id: wxyhhwhshap7
+  type: challenge
+  title: Configure intentions to allow traffic between two services
+  teaser: This challenge shows how you can configure intentions to allow traffic between
+    your services
+  assignment: Configure an intention to allow traffic from the "emojify-ingress" to
+    the "emojify-website" services
+  notes:
+  - type: text
+    contents: In the previous challenge we configured Consul Connect to deny all traffic
+      between services. In this challenge you will see how it is possible to configure
+      an intention to allow traffic between two services.
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Emojify
+    type: service
+    hostname: kubernetes
+    port: 30000
+  - title: Kubernetes
+    type: service
+    hostname: kubernetes
+    path: /api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/#!/deployment?namespace=default
+    port: 8001
+  - title: Consul
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30010
+  difficulty: basic
+  timelimit: 500
+checksum: "1669612723963134739"

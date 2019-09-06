@@ -1,0 +1,727 @@
+#!/bin/bash -x
+rm -rf /root/snap
+
+##
+## FIX HACK: Change Vault Readyness Probe
+##
+cat <<EOF > /tmp/vault-server-statefulset.yaml
+# StatefulSet to run the actual vault server cluster.
+{{ template "vault.mode" . }}
+{{- if and (ne .mode "") (eq (.Values.global.enabled | toString) "true") }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "vault.fullname" . }}
+  labels:
+    helm.sh/chart: {{ include "vault.chart" . }}
+    app.kubernetes.io/name: {{ include "vault.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/version: {{ .Chart.Version | quote }}
+spec:
+  serviceName: {{ template "vault.fullname" . }}
+  podManagementPolicy: Parallel
+  replicas: {{ template "vault.replicas" . }}
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      helm.sh/chart: {{ template "vault.chart" . }}
+      app.kubernetes.io/name: {{ template "vault.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: server
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: {{ template "vault.chart" . }}
+        app.kubernetes.io/name: {{ template "vault.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: server
+      {{ template "vault.annotations" . }}
+    spec:
+      {{ template "vault.affinity" . }}
+      {{ template "vault.tolerations" . }}
+      {{ template "vault.nodeselector" . }}
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: {{ template "vault.fullname" . }}
+      securityContext:
+        fsGroup: {{ template "vault.fsgroup" . }}
+      volumes:
+        {{ template "vault.volumes" . }}
+      containers:
+        - name: vault
+          {{ template "vault.resources" . }}
+          securityContext:
+            privileged: true
+          image: "{{ .Values.global.image }}"
+          command: {{ template "vault.command" . }}
+          args: {{ template "vault.args" . }}
+          env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: VAULT_ADDR
+              value: "http://localhost:8200"
+            - name: SKIP_CHOWN
+              value: "true"
+            {{ template "vault.envs" . }}
+            {{- include "vault.extraEnvironmentVars" .Values.server | nindent 12 }}
+          volumeMounts:
+          {{ template "vault.mounts" . }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["vault", "step-down"]
+          ports:
+            - containerPort: 8200
+              name: http
+            - containerPort: 8201
+              name: internal
+            - containerPort: 8202
+              name: replication
+          readinessProbe:
+            # Check status; unsealed vault servers return 0
+            # The exit code reflects the seal status:
+            #   0 - unsealed
+            #   1 - error
+            #   2 - sealed
+            #exec:
+            #  command: ["/bin/sh", "-ec", "vault status"]
+            httpGet:
+              scheme: HTTP
+              path: "/v1/sys/health?standbyok=true&perfstandbyok=true"
+              port: http
+            failureThreshold: 2
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            successThreshold: 1
+            timeoutSeconds: 5
+  {{ template "vault.volumeclaims" . }}
+{{ end }}
+EOF
+
+cat <<EOF > /tmp/consul-client-daemonset.yaml
+# DaemonSet to run the Consul clients on every node.
+{{- if (or (and (ne (.Values.client.enabled | toString) "-") .Values.client.enabled) (and (eq (.Values.client.enabled | toString) "-") .Values.global.enabled)) }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ template "consul.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "consul.name" . }}
+    chart: {{ template "consul.chart" . }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "consul.name" . }}
+      chart: {{ template "consul.chart" . }}
+      release: {{ .Release.Name }}
+      component: client
+      hasDNS: "true"
+  template:
+    metadata:
+      labels:
+        app: {{ template "consul.name" . }}
+        chart: {{ template "consul.chart" . }}
+        release: {{ .Release.Name }}
+        component: client
+        hasDNS: "true"
+      annotations:
+        "consul.hashicorp.com/connect-inject": "false"
+        {{- if .Values.client.annotations }}
+          {{- tpl .Values.client.annotations . | nindent 8 }}
+        {{- end }}
+    spec:
+    {{- if .Values.client.tolerations }}
+      tolerations:
+        {{ tpl .Values.client.tolerations . | nindent 8 | trim }}
+    {{- end }}
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: {{ template "consul.fullname" . }}-client
+
+      {{- if .Values.client.priorityClassName }}
+      priorityClassName: {{ .Values.client.priorityClassName | quote }}
+      {{- end }}
+
+      # Consul agents require a directory for data, even clients. The data
+      # is okay to be wiped though if the Pod is removed, so just use an
+      # emptyDir volume.
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ template "consul.fullname" . }}-client-config
+        {{- range .Values.client.extraVolumes }}
+        - name: userconfig-{{ .name }}
+          {{ .type }}:
+            {{- if (eq .type "configMap") }}
+            name: {{ .name }}
+            {{- else if (eq .type "secret") }}
+            secretName: {{ .name }}
+            {{- end }}
+        {{- end }}
+        {{- if .Values.global.bootstrapACLs }}
+        - name: aclconfig
+          emptyDir: {}
+        {{- end }}
+
+      containers:
+        - name: consul
+          image: "{{ default .Values.global.image .Values.client.image }}"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            {{- if (and .Values.global.gossipEncryption.secretName .Values.global.gossipEncryption.secretKey) }}
+            - name: GOSSIP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.gossipEncryption.secretName }}
+                  key: {{ .Values.global.gossipEncryption.secretKey }}
+            {{- end }}
+            {{- include "consul.extraEnvironmentVars" .Values.client | nindent 12 }}
+          command:
+            - "/bin/sh"
+            - "-ec"
+            - |
+              CONSUL_FULLNAME="{{template "consul.fullname" . }}"
+
+              exec /bin/consul agent \\
+                -node="\${NODE}" \\
+                -advertise="\${POD_IP}" \\
+                -bind=0.0.0.0 \\
+                -client=0.0.0.0 \\
+                {{- if .Values.client.grpc }}
+                -hcl="ports { grpc = 8502 }" \\
+                {{- end }}
+                -config-dir=/consul/config \\
+                {{- range .Values.client.extraVolumes }}
+                {{- if .load }}
+                -config-dir=/consul/userconfig/{{ .name }} \\
+                {{- end }}
+                {{- end }}
+                {{- if .Values.global.bootstrapACLs}}
+                -config-dir=/consul/aclconfig \\
+                {{- end }}
+                -datacenter={{ .Values.global.datacenter }} \\
+                -data-dir=/consul/data \\
+                {{- if (and .Values.global.gossipEncryption.secretName .Values.global.gossipEncryption.secretKey) }}
+                -encrypt="\${GOSSIP_KEY}" \\
+                {{- end }}
+                {{- if (.Values.client.join) and (gt (len .Values.client.join) 0) }}
+                {{- range \$value := .Values.client.join }}
+                -retry-join="{{ \$value }}" \\
+                {{- end }}
+                {{- else }}
+                {{- if .Values.server.enabled }}
+                {{- range \$index := until (.Values.server.replicas | int) }}
+                -retry-join=\${CONSUL_FULLNAME}-server-{{ \$index }}.\${CONSUL_FULLNAME}-server.\${NAMESPACE}.svc \\
+                {{- end }}
+                {{- end }}
+                {{- end }}
+                -domain={{ .Values.global.domain }}
+          volumeMounts:
+            - name: data
+              mountPath: /consul/data
+            - name: config
+              mountPath: /consul/config
+            {{- range .Values.client.extraVolumes }}
+            - name: userconfig-{{ .name }}
+              readOnly: true
+              mountPath: /consul/userconfig/{{ .name }}
+            {{- end }}
+            {{- if .Values.global.bootstrapACLs}}
+            - name: aclconfig
+              mountPath: /consul/aclconfig
+            {{- end }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - consul leave
+          ports:
+            - containerPort: 8500
+              hostPort: 8500
+              name: http
+            - containerPort: 8502
+              hostPort: 8502
+              name: grpc
+            - containerPort: 8301
+              name: serflan
+            - containerPort: 8302
+              name: serfwan
+            - containerPort: 8300
+              name: server
+            - containerPort: 8600
+              name: dns-tcp
+              protocol: "TCP"
+            - containerPort: 8600
+              name: dns-udp
+              protocol: "UDP"
+#          readinessProbe:
+#            # NOTE(mitchellh): when our HTTP status endpoints support the
+#            # proper status codes, we should switch to that. This is temporary.
+#            exec:
+#              command:
+#                - "/bin/sh"
+#                - "-ec"
+#                - |
+#                  curl http://127.0.0.1:8500/v1/status/leader 2>/dev/null | \\
+#                  grep -E '".+"'
+          {{- if .Values.client.resources }}
+          resources:
+            {{ tpl .Values.client.resources . | nindent 12 | trim }}
+          {{- end }}
+      {{- if .Values.global.bootstrapACLs }}
+      initContainers:
+      - name: client-acl-init
+        image: {{ .Values.global.imageK8S }}
+        command:
+          - "/bin/sh"
+          - "-ec"
+          - |
+            consul-k8s acl-init \\
+              -secret-name="{{ .Release.Name }}-consul-client-acl-token" \\
+              -k8s-namespace={{ .Release.Namespace }} \\
+              -init-type="client"
+        volumeMounts:
+          - name: aclconfig
+            mountPath: /consul/aclconfig
+      {{- end }}
+      {{- if .Values.client.nodeSelector }}
+      nodeSelector:
+        {{ tpl .Values.client.nodeSelector . | indent 8 | trim }}
+      {{- end }}
+{{- end }}
+EOF
+
+cat <<EOF > /tmp/consul-server-statefulset.yaml
+# StatefulSet to run the actual Consul server cluster.
+{{- if (or (and (ne (.Values.server.enabled | toString) "-") .Values.server.enabled) (and (eq (.Values.server.enabled | toString) "-") .Values.global.enabled)) }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "consul.fullname" . }}-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "consul.name" . }}
+    chart: {{ template "consul.chart" . }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+spec:
+  serviceName: {{ template "consul.fullname" . }}-server
+  podManagementPolicy: Parallel
+  replicas: {{ .Values.server.replicas }}
+  {{- if (gt (int .Values.server.updatePartition) 0) }}
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: {{ .Values.server.updatePartition }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ template "consul.name" . }}
+      chart: {{ template "consul.chart" . }}
+      release: {{ .Release.Name }}
+      component: server
+      hasDNS: "true"
+  template:
+    metadata:
+      labels:
+        app: {{ template "consul.name" . }}
+        chart: {{ template "consul.chart" . }}
+        release: {{ .Release.Name }}
+        component: server
+        hasDNS: "true"
+      annotations:
+        "consul.hashicorp.com/connect-inject": "false"
+        {{- if .Values.server.annotations }}
+          {{- tpl .Values.server.annotations . | nindent 8 }}
+        {{- end }}
+    spec:
+    {{- if .Values.server.affinity }}
+      affinity:
+        {{ tpl .Values.server.affinity . | nindent 8 | trim }}
+    {{- end }}
+    {{- if .Values.server.tolerations }}
+      tolerations:
+        {{ tpl .Values.server.tolerations . | nindent 8 | trim }}
+    {{- end }}
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: {{ template "consul.fullname" . }}-server
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "consul.fullname" . }}-server-config
+        {{- range .Values.server.extraVolumes }}
+        - name: userconfig-{{ .name }}
+          {{ .type }}:
+            {{- if (eq .type "configMap") }}
+            name: {{ .name }}
+            {{- else if (eq .type "secret") }}
+            secretName: {{ .name }}
+            {{- end }}
+        {{- end }}
+      {{- if .Values.server.priorityClassName }}
+      priorityClassName: {{ .Values.server.priorityClassName | quote }}
+      {{- end }}
+      containers:
+        - name: consul
+          image: "{{ default .Values.global.image .Values.server.image }}"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- if (and .Values.global.gossipEncryption.secretName .Values.global.gossipEncryption.secretKey) }}
+            - name: GOSSIP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.gossipEncryption.secretName }}
+                  key: {{ .Values.global.gossipEncryption.secretKey }}
+            {{- end }}
+            {{- include "consul.extraEnvironmentVars" .Values.server | nindent 12 }}
+          command:
+            - "/bin/sh"
+            - "-ec"
+            - |
+              CONSUL_FULLNAME="{{template "consul.fullname" . }}"
+
+              exec /bin/consul agent \\
+                -advertise="\${POD_IP}" \\
+                -bind=0.0.0.0 \\
+                -bootstrap-expect={{ .Values.server.bootstrapExpect }} \\
+                -client=0.0.0.0 \\
+                -config-dir=/consul/config \\
+                {{- range .Values.server.extraVolumes }}
+                {{- if .load }}
+                -config-dir=/consul/userconfig/{{ .name }} \\
+                {{- end }}
+                {{- end }}
+                -datacenter={{ .Values.global.datacenter }} \\
+                -data-dir=/consul/data \\
+                -domain={{ .Values.global.domain }} \\
+                {{- if (and .Values.global.gossipEncryption.secretName .Values.global.gossipEncryption.secretKey) }}
+                -encrypt="\${GOSSIP_KEY}" \\
+                {{- end }}
+                {{- if .Values.server.connect }}
+                -hcl="connect { enabled = true }" \\
+                {{- end }}
+                {{- if .Values.ui.enabled }}
+                -ui \\
+                {{- end }}
+                {{- range \$index := until (.Values.server.replicas | int) }}
+                -retry-join=\${CONSUL_FULLNAME}-server-{{ \$index }}.\${CONSUL_FULLNAME}-server.\${NAMESPACE}.svc \\
+                {{- end }}
+                -server
+          volumeMounts:
+            - name: data-{{ .Release.Namespace }}
+              mountPath: /consul/data
+            - name: config
+              mountPath: /consul/config
+            {{- range .Values.server.extraVolumes }}
+            - name: userconfig-{{ .name }}
+              readOnly: true
+              mountPath: /consul/userconfig/{{ .name }}
+            {{- end }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - consul leave
+          ports:
+            - containerPort: 8500
+              name: http
+            - containerPort: 8301
+              name: serflan
+            - containerPort: 8302
+              name: serfwan
+            - containerPort: 8300
+              name: server
+            - containerPort: 8600
+              name: dns-tcp
+              protocol: "TCP"
+            - containerPort: 8600
+              name: dns-udp
+              protocol: "UDP"
+          readinessProbe:
+#            # NOTE(mitchellh): when our HTTP status endpoints support the
+#            # proper status codes, we should switch to that. This is temporary.
+#            exec:
+#              command:
+#                - "/bin/sh"
+#                - "-ec"
+#                - |
+#                  curl http://127.0.0.1:8500/v1/status/leader 2>/dev/null | \\
+#                  grep -E '".+"'
+#            failureThreshold: 2
+#            initialDelaySeconds: 5
+#            periodSeconds: 3
+#            successThreshold: 1
+#            timeoutSeconds: 5
+          {{- if .Values.server.resources }}
+          resources:
+            {{ tpl .Values.server.resources . | nindent 12 | trim }}
+          {{- end }}
+      {{- if .Values.server.nodeSelector }}
+      nodeSelector:
+        {{ tpl .Values.server.nodeSelector . | indent 8 | trim }}
+      {{- end }}    
+  volumeClaimTemplates:
+    - metadata:
+        name: data-{{ .Release.Namespace }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.server.storage }}
+        {{- if .Values.server.storageClass }}
+        storageClassName: {{ .Values.server.storageClass }}
+        {{- end }}
+{{- end }}
+EOF
+
+##
+## Vault
+##
+
+# Install local Vault instance
+
+curl -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.1/vault_1.2.1_linux_amd64.zip
+unzip /tmp/vault.zip
+mv vault /usr/local/bin/vault
+echo "export VAULT_ADDR=http://localhost:30082" >> /root/.bashrc
+echo "export VAULT_TOKEN=root" >> /root/.bashrc
+
+# Setup Vault using Helm
+git clone https://github.com/hashicorp/vault-helm.git
+cp /tmp/vault-server-statefulset.yaml vault-helm/templates/server-statefulset.yaml
+
+cat <<EOF > vault-values.yaml
+global:
+  image: "vault:1.2.1"
+
+server:
+  dev:
+    enabled: true
+
+ui:
+  enabled: true
+EOF
+
+/usr/local/bin/helm template -f vault-values.yaml ./vault-helm | /usr/local/bin/kubectl apply -f -
+
+# Export Vault UI Port
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: vault
+    component: server
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8200
+    targetPort: 8200
+    nodePort: 30082
+EOF
+
+##
+## Consul
+##
+
+# Install local Consul instance
+curl -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.5.3/consul_1.5.3_linux_amd64.zip
+unzip /tmp/consul.zip
+mv consul /usr/local/bin/consul
+echo "export CONSUL_HTTP_ADDR=http://localhost:30086" >> /root/.bashrc
+
+# Setup Consul using Helm
+git clone https://github.com/hashicorp/consul-helm.git
+cp /tmp/consul-client-daemonset.yaml consul-helm/templates/client-daemonset.yaml
+cp /tmp/consul-server-statefulset.yaml consul-helm/templates/server-statefulset.yaml
+
+cat <<EOF > consul-values.yaml
+name: consul
+
+global:
+  datacenter: dc1
+  fullnamePrefix: ""
+  image: "consul:1.5.3"
+
+server:
+  replicas: 1
+  bootstrapExpect: 1
+  disruptionBudget:
+    enabled: true
+    maxUnavailable: 0
+  extraConfig: |
+    {
+      "connect" : {
+        "ca_provider" : "vault",
+        "ca_config" : {
+          "address" : "http://vault:8200",
+          "token" : "root",
+          "root_pki_path" : "mesh-root",
+          "intermediate_pki_path" : "mesh-intermediate"
+        }
+      }
+    }
+
+client:
+  enabled: true
+  grpc: true
+
+ui:
+  enabled: true
+
+connectInject:
+  enabled: true
+  default: false
+
+  centralConfig:
+    enabled: true
+
+    defaultProtocol: http
+
+    proxyDefaults: |
+      {
+      "envoy_dogstatsd_url": "udp://127.0.0.1:9125"
+      }
+
+syncCatalog:
+  enabled: true
+  consulPrefix: "k8s-"
+EOF
+
+/usr/local/bin/helm template -f consul-values.yaml ./consul-helm | /usr/local/bin/kubectl apply -f -
+
+# Export Consul UI Port
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-service
+spec:
+  type: NodePort
+  selector:
+    app: consul
+    component: server
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8500
+    targetPort: 8500
+    nodePort: 30085
+  - name: api
+    protocol: TCP
+    port: 8600
+    targetPort: 8600
+    nodePort: 30086
+EOF
+
+#
+
+/usr/local/bin/kubectl get secret -o json -n kube-system $(kubectl get secret -n kube-system | grep admin-user | awk '{ print $1 }') | jq -r '.data.token' | base64 --decode > /root/token.txt
+
+##
+##
+##
+
+# Set up prometheus and grafana
+git clone https://github.com/eveld/consul-k8s-l7-obs-guide.git guide
+
+# Install prometheus
+/usr/local/bin/helm fetch \
+  --repo https://kubernetes-charts.storage.googleapis.com \
+  --untar \
+  --untardir ./charts \
+    prometheus
+/usr/local/bin/helm template -f guide/prometheus-values.yaml -n prometheus ./charts/prometheus | /usr/local/bin/kubectl apply -f -
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+spec:
+  type: NodePort
+  ports:
+    - name: service
+      port: 80
+      protocol: TCP
+      targetPort: 9090
+
+      nodePort: 30090
+  selector:
+    app: prometheus
+    component: server
+EOF
+
+# Install grafana
+/usr/local/bin/helm fetch \
+  --repo https://kubernetes-charts.storage.googleapis.com \
+  --untar \
+  --untardir ./charts \
+    grafana
+/usr/local/bin/helm template -f guide/grafana-values.yaml -n grafana ./charts/grafana | /usr/local/bin/kubectl apply -f -
+/usr/local/bin/kubectl get secret --namespace default grafana -o jsonpath="{.data.admin-password}" | base64 --decode > grafana.txt
+
+cat <<EOF | /usr/local/bin/kubectl apply -f -
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+spec:
+  type: NodePort
+  ports:
+    - name: service
+      port: 80
+      protocol: TCP
+      targetPort: 3000
+
+      nodePort: 30030
+  selector:
+    app: grafana
+EOF

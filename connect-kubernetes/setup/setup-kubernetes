@@ -1,0 +1,21 @@
+#!/bin/bash
+CONSUL_HELM_VERSION=0.7.0
+
+which set-workdir
+env
+
+# Clone the config repo (we should perhaps split this up into multiple repos, one for each setup).
+git clone http://github.com/hashicorp/da-instruqt-security /tmp/security
+
+# Fetch the latest helm chart
+wget https://github.com/hashicorp/consul-helm/archive/v${CONSUL_HELM_VERSION}.zip -O /tmp/consul-helm.zip
+unzip /tmp/consul-helm.zip -d /tmp/security/exercises/01-setup-consul/files/consul-helm
+
+# Explicitly set the nodeport
+sed -i '/targetPort: 8500/a  \      nodePort: 30010' /tmp/security/exercises/01-setup-consul/files/consul-helm/consul-helm-${CONSUL_HELM_VERSION}/templates/ui-service.yaml
+
+# Run emojify app
+kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f  /tmp/security/exercises/01-setup-consul/files/app
+
+# Set workdir
+set-workdir "/tmp/security/exercises/01-setup-consul/files/consul-helm"

@@ -1,0 +1,42 @@
+slug: consul-kubernetes
+id: ugfzwp9hbuio
+type: track
+title: Consul Kubernetes
+teaser: A sandbox environment with a  Consul cluster on Kubernetes.
+description: A sandboxed environment that can be used to showcase features of Consul
+  and its integration with Kubernetes.
+icon: https://storage.googleapis.com/instruqt-frontend/img/tracks/kubernetes.png
+tags:
+- consul
+- kubernetes
+owner: hashicorp
+developers:
+- eveld@hashicorp.com
+private: true
+published: true
+challenges:
+- slug: sandbox
+  id: 4oi4u9b7pwto
+  type: challenge
+  title: Sandbox
+  teaser: Sandbox environment.
+  assignment: |-
+    The environment contains a single node Kubernetes cluster with Consul deployed on it through the helm chart.
+
+    There are tabs exposing a terminal on each of the server and the UI for both Kubernetes and Consul.
+  tabs:
+  - title: Shell
+    type: terminal
+    hostname: kubernetes
+  - title: Dashboard
+    type: service
+    hostname: kubernetes
+    port: 30443
+  - title: Consul
+    type: service
+    hostname: kubernetes
+    path: /ui/
+    port: 30085
+  difficulty: basic
+  timelimit: 3600
+checksum: "12073620822038185368"

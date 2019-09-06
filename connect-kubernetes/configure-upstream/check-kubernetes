@@ -1,0 +1,21 @@
+#!/bin/bash
+
+cat /tmp/security/exercises/03-setup-upstream/files/app/ingress.yml | grep "consul.hashicorp.com/connect-service-upstreams"
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have added the upstreams annotation"
+fi
+
+cat /tmp/security/exercises/03-setup-upstream/files/app/ingress.yml | grep "emojify-api:8000"
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured the upstream for the emojify-api"
+fi
+
+cat /tmp/security/exercises/03-setup-upstream/files/app/ingress.yml | grep "emojify-website:8001"
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have configured the upstream for the emojify-website"
+fi
+
+curl localhost:30000 | grep emojify
+if [ $? != 0 ]; then
+  fail-message "Please make sure you have applied the configuration and the website is working"
+fi
