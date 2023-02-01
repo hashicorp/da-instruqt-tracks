@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 slug: consul-k8s-l7-observability
 id: u3cxfe1z4m2y
 type: track
